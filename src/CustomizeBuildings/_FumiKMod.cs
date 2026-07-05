@@ -1,6 +1,7 @@
 using Common;
 using HarmonyLib;
 using KMod;
+using PeterHan.PLib.Core;
 using PeterHan.PLib.Options;
 using System;
 using System.Collections.Generic;
@@ -35,6 +36,9 @@ namespace CustomizeBuildings
 
             // load settings
             _ = CustomizeBuildingsState.Instance;
+            PRegistry.PutData("ConduitCapacity_Gas", CustomizeBuildingsState.Instance.PipeGasMaxPressure);
+            PRegistry.PutData("ConduitCapacity_Liquid", CustomizeBuildingsState.Instance.PipeLiquidMaxPressure);
+            PRegistry.PutData("ConduitCapacity_Solid", CustomizeBuildingsState.Instance.ConveyorRailPackageSize);
 
             // init options menu
             new POptions().RegisterOptions(this, typeof(CustomizeBuildingsState));

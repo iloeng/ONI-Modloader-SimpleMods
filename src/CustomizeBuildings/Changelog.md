@@ -1,6 +1,9 @@
 # Changelog
 
-## [1.0.125.0]  U59-737790-SCRPAN (release)
+## [1.0.126.0] U59-737790-SCRPAN (release)
+- added PRegistry for pipe size (mod compatibility)
+
+## [1.0.125.0] U59-737790-SCRPAN (release)
 - provisional fix for Compost Manager
 
 ## [1.0.124.0] U59-737790-SCRPAN (release)
