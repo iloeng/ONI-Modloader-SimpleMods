@@ -81,81 +81,89 @@ namespace CustomizeBuildings
 
         public void Sim4000ms(float dt)
         {
-            // only one world per call
-            var world = ClusterManager.Instance.WorldContainers.ElementAtOrDefault(NextIndex++);
-            if (world == null)
+            try
             {
-                NextIndex = 0;
-                return;
-            }
+                // only one world per call
+                var world = ClusterManager.Instance.WorldContainers.ElementAtOrDefault(NextIndex++);
+                if (world == null)
+                {
+                    NextIndex = 0;
+                    return;
+                }
 
-            int dupes = Components.LiveMinionIdentities.GetWorldItems(world.id, false).Count;
-            Helpers.PrintDebug($"CompostManager world={world.id} dupes={dupes}");
-            if (dupes == 0)
-                return;
+                int dupes = Components.LiveMinionIdentities.GetWorldItems(world.id, false).Count;
+                Helpers.PrintDebug($"CompostManager world={world.id} dupes={dupes}");
+                if (dupes == 0)
+                    return;
 
-            // get all edible food and record freshness
-            _Foods.Clear();
-            foreach (var food in world.worldInventory.GetPickupables(GameTags.Edible) ?? Array.Empty<Pickupable>())
-            {
-                var rottable = food.GetSMI<Rottable.Instance>();
-                if (rottable.IsNullOrStopped())
-                    continue;
+                // get all edible food and record freshness
+                _Foods.Clear();
+                foreach (var food in world.worldInventory.GetPickupables(GameTags.Edible) ?? Array.Empty<Pickupable>())
+                {
+                    var rottable = food.GetSMI<Rottable.Instance>();
+                    if (rottable.IsNullOrStopped())
+                        continue;
 
-                float freshness = rottable.RotConstitutionPercentage;
-                Helpers.PrintDebug($"CompostManager food={food.PrefabID()} percent={freshness} calories={food.GetComponent<Edible>().Calories}");
+                    float freshness = rottable.RotConstitutionPercentage;
+                    Helpers.PrintDebug($"CompostManager food={food.PrefabID()} percent={freshness} calories={food.GetComponent<Edible>().Calories}");
 
-                var compostable = food.GetComponent<Compostable>();
-                if (compostable == null || compostable.isMarkedForCompost)
-                    continue;
+                    var compostable = food.GetComponent<Compostable>();
+                    if (compostable == null || compostable.isMarkedForCompost)
+                        continue;
 
-                _Foods.Add(new FoodStuff(freshness, food));
-            }
+                    _Foods.Add(new FoodStuff(freshness, food));
+                }
 
-            // sort through fresh food first and count calories; when enough calories are available, mark stale food for compost
-            _Foods.Sort();
-            float calories = dupes * 1000f * CustomizeBuildingsState.Instance.CompostCaloriesPerDupe;
-            float minimumFreshness = CustomizeBuildingsState.Instance.CompostFreshnessPercent;
-            foreach (var foodstuff in _Foods)
-            {
-                Helpers.PrintDebug($"CompostManager food2={foodstuff.Pickupable.PrefabID()} percent={foodstuff.Freshness} calories={foodstuff.Pickupable.GetComponent<Edible>().Calories}");
+                // sort through fresh food first and count calories; when enough calories are available, mark stale food for compost
+                _Foods.Sort();
+                float calories = dupes * 1000f * CustomizeBuildingsState.Instance.CompostCaloriesPerDupe;
+                float minimumFreshness = CustomizeBuildingsState.Instance.CompostFreshnessPercent;
+                foreach (var foodstuff in _Foods)
+                {
+                    Helpers.PrintDebug($"CompostManager food2={foodstuff.Pickupable.PrefabID()} percent={foodstuff.Freshness} calories={foodstuff.Pickupable.GetComponent<Edible>().Calories}");
+                    if (calories > 0)
+                    {
+                        Helpers.PrintDebug($"skipped because colonie needs the calories");
+                        calories -= foodstuff.Pickupable.GetComponent<Edible>().Calories;
+                        continue;
+                    }
+
+                    if (foodstuff.Freshness < minimumFreshness)
+                    {
+                        Helpers.PrintDebug($"composting");
+                        MarkForCompost(foodstuff.Pickupable, foodstuff.Pickupable.GetComponent<Compostable>());
+                    }
+                }
+
+                // if we don't have enough food, don't compost any ingredients
                 if (calories > 0)
+                    return;
+
+                // mark stale ingredients for compost; ingredients don't have calories
+                foreach (var food in world.worldInventory.GetPickupables(GameTags.CookingIngredient)?.ToArray() ?? [])
                 {
-                    Helpers.PrintDebug($"skipped because colonie needs the calories");
-                    calories -= foodstuff.Pickupable.GetComponent<Edible>().Calories;
-                    continue;
+                    var rottable = food.GetSMI<Rottable.Instance>();
+                    if (rottable.IsNullOrStopped())
+                        continue;
+
+                    float freshness = rottable.RotConstitutionPercentage;
+                    Helpers.PrintDebug($"CompostManager food3={food.PrefabID()} percent={freshness}");
+
+                    var compostable = food.GetComponent<Compostable>();
+                    if (compostable == null || compostable.isMarkedForCompost)
+                        continue;
+
+                    if (freshness < minimumFreshness)
+                    {
+                        Helpers.PrintDebug($"composting");
+                        MarkForCompost(food, compostable);
+                    }
                 }
-
-                if (foodstuff.Freshness < minimumFreshness)
-                {
-                    Helpers.PrintDebug($"composting");
-                    MarkForCompost(foodstuff.Pickupable, foodstuff.Pickupable.GetComponent<Compostable>());
-                }
-            }
-
-            // if we don't have enough food, don't compost any ingredients
-            if (calories > 0)
-                return;
-
-            // mark stale ingredients for compost; ingredients don't have calories
-            foreach (var food in world.worldInventory.GetPickupables(GameTags.CookingIngredient)?.ToArray() ?? [])
+            } catch (Exception)
             {
-                var rottable = food.GetSMI<Rottable.Instance>();
-                if (rottable.IsNullOrStopped())
-                    continue;
-
-                float freshness = rottable.RotConstitutionPercentage;
-                Helpers.PrintDebug($"CompostManager food3={food.PrefabID()} percent={freshness}");
-
-                var compostable = food.GetComponent<Compostable>();
-                if (compostable == null || compostable.isMarkedForCompost)
-                    continue;
-
-                if (freshness < minimumFreshness)
-                {
-                    Helpers.PrintDebug($"composting");
-                    MarkForCompost(food, compostable);
-                }
+#if DEBUG
+                throw;
+#endif
             }
         }
     }

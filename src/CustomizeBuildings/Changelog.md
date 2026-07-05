@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.125.0]  U59-737790-SCRPAN (release)
+- provisional fix for Compost Manager
+
 ## [1.0.124.0] U59-737790-SCRPAN (release)
 - added TidalTurbinePower, TidalTurbineExhaleRate, TidalTurbineInhaleRate to change basic variables
 - added TidalTurbineProduce which is a new mechanic that makes Tidal Geysers multiple its material (default: off)
