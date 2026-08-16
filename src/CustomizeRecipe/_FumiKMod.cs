@@ -1,4 +1,4 @@
-﻿using Common;
+using Common;
 using HarmonyLib;
 using PeterHan.PLib.Options;
 
@@ -25,7 +25,7 @@ namespace CustomizeRecipe
             Helpers.ActiveLocale = Helpers.StringsLoad();
 
             // load settings
-            CustomizeRecipeState.StateManager = new(CustomizeRecipeState.GetStaticConfigPath(), true, CustomizeRecipeState.OnUpdate, CustomizeRecipeState.OnLoaded);
+            CustomizeRecipeState.Instance.OnLoaded();
 
             // init options menu
             new POptions().RegisterOptions(this, typeof(CustomizeRecipeState));

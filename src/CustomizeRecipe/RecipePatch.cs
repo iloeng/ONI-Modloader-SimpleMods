@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using UnityEngine;
 using System.Reflection;
 using System.Collections.Generic;
@@ -50,10 +50,10 @@ namespace CustomizeRecipe
 #endif
             UnlockStorage();
 
-            foreach (var setting in CustomizeRecipeState.StateManager.State.RecipeSettings)
+            foreach (var setting in CustomizeRecipeState.Instance.RecipeSettings)
                 Process(setting);
 
-            if (CustomizeRecipeState.StateManager.State.CheatFast)
+            if (CustomizeRecipeState.Instance.CheatFast)
             {
                 foreach (var recipe in ComplexRecipeManager.Get().preProcessRecipes)
                 {
@@ -61,7 +61,7 @@ namespace CustomizeRecipe
                 }
             }
 
-            if (CustomizeRecipeState.StateManager.State.CheatFree)
+            if (CustomizeRecipeState.Instance.CheatFree)
             {
                 foreach (var recipe in ComplexRecipeManager.Get().preProcessRecipes)
                 {
@@ -81,6 +81,9 @@ namespace CustomizeRecipe
         /// </summary>
         public static void UnlockStorage()
         {
+            if (!CustomizeRecipeState.Instance.OverrideStoreProduced)
+                return;
+
             var recipes = ComplexRecipeManager.Get().preProcessRecipes;
 
             foreach (var building in Assets.BuildingDefs)
@@ -88,7 +91,9 @@ namespace CustomizeRecipe
                 if (building is null)
                     continue;
                 var fabricator = building.BuildingComplete?.GetComponent<ComplexFabricator>();
-                if (fabricator == null || fabricator.storeProduced != true)
+                if (fabricator == null || !fabricator.storeProduced)
+                    continue;
+                if (building.OutputConduitType is not (ConduitType.Gas or ConduitType.Liquid))
                     continue;
 
                 foreach (var recipe in recipes)
@@ -97,7 +102,7 @@ namespace CustomizeRecipe
                     {
                         foreach (var output in recipe.results)
                         {
-                            if (output.material.ToElement().IsLiquid)
+                            if (output.material.ToElement().GetConduitType() == building.OutputConduitType)
                             {
                                 output.storeElement = true;
                                 fabricator.storeProduced = false;
@@ -173,7 +178,7 @@ namespace CustomizeRecipe
 
         public static void Print()
         {
-            CustomizeRecipeState.StateManager.State.RecipeSettings.Clear();
+            CustomizeRecipeState.Instance.RecipeSettings.Clear();
             foreach (var recipe in ComplexRecipeManager.Get().preProcessRecipes)
             {
                 var item = new RecipeData()
@@ -190,7 +195,7 @@ namespace CustomizeRecipe
                     Inputs = { recipe.ingredients.Select(s => (RecipeData.RecipeElement)s) },
                     Outputs = { recipe.results.Select(s => (RecipeData.RecipeElement)s) },
                 };
-                CustomizeRecipeState.StateManager.State.RecipeSettings.Add(item);
+                CustomizeRecipeState.Instance.RecipeSettings.Add(item);
             }
         }
     }
@@ -212,7 +217,7 @@ namespace CustomizeRecipe
     {
         public static bool Prepare()
         {
-            return CustomizeRecipeState.StateManager.State.CheatFree || CustomizeRecipeState.StateManager.State.AllowZeroInput;
+            return CustomizeRecipeState.Instance.CheatFree || CustomizeRecipeState.Instance.AllowZeroInput;
         }
 
         public static void Prefix(int index, ComplexFabricator __instance, List<int> ___openOrderCounts)

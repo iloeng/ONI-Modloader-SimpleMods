@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.12.0] U59-737790-SCRPAN (release) U59-744825-SCRPAN (release)
+- updated json logic
+- added OverrideStoreProduced option to dynamically change building store behavior (default off)
+
 ## [1.0.11.0] U56-678383-SCRP (release)
 - fixed crash with CheatFree
 

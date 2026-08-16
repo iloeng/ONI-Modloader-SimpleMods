@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Shared.CollectionNS;
 
+#pragma warning disable IDE1006 // allow lower case fields
+
 namespace CustomizeRecipe
 {
     /// need [Id] or [Building, Inputs, Outputs]

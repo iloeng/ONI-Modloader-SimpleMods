@@ -1,29 +1,33 @@
-using System.Collections.Generic;
-using Newtonsoft.Json;
 using Common;
+using Config;
 using PeterHan.PLib.Options;
-using System.IO;
+using Shared;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace CustomizeRecipe
 {
     [ConfigFile("CustomizeRecipe.json", true, true, typeof(Config.TranslationResolver))]
     [RestartRequired]
-    public class CustomizeRecipeState : IManualConfig
+    public class CustomizeRecipeState : BaseSettings<CustomizeRecipeState>, IManualConfig
     {
-        public int version { get; set; } = 2;
+        public override int Version { get; set; } = 3;
 
         [Option("CustomizeRecipe.LOCSTRINGS.LoadAllRecipesToConfig_Title", "CustomizeRecipe.LOCSTRINGS.LoadAllRecipesToConfig_ToolTip", "", null)]
         [JsonIgnore]
         public System.Action<object> LoadAllRecipesToConfig => delegate (object nix)
         {
             RecipePatch.Print();
-            StateManager.TrySaveConfigurationState();
+            TrySave();
 
             OptionsDialog.Last?.CloseDialog();
             OptionsDialog.Last = null;
         };
+
+        /// <summary>Whenever to force remove buildings 'store' flag. May have unexpected consequences.</summary>
+        public bool OverrideStoreProduced { get; set; } = false;
 
         public bool CheatFast { get; set; } = false;
 
@@ -48,13 +52,22 @@ namespace CustomizeRecipe
 
         #region _implementation
 
-        public static Config.Manager<CustomizeRecipeState> StateManager = null!;
+        public override string DefaultPath => Path.Combine(Util.RootFolder(), "mods", $"{FumiKMod.ModName}.json");
 
-        public static bool OnUpdate(CustomizeRecipeState state)
+        protected override string BeforeUpdate(int oldVersion, string json)
         {
-            if (state.version < 2)
+            if (oldVersion < 3)
             {
-                var rs = state.RecipeSettings;
+                json = json.Replace("\"version\"", "\"Version\"");
+            }
+            return json;
+        }
+
+        protected override bool OnUpdate()
+        {
+            if (Version < 2)
+            {
+                var rs = RecipeSettings;
                 for (int i = rs.Count - 1; i >= 0; i--)
                 {
                     if (rs[i].Inputs.Any(a => a.material is "0"))
@@ -64,12 +77,40 @@ namespace CustomizeRecipe
             return true;
         }
 
-        public static void OnLoaded(CustomizeRecipeState state)
+        protected override bool OnError(Exception e)
         {
-            // if no zero inputs, skip patches for zero inputs
-            if (state.AllowZeroInput)
+            var text = e.ToString();
+            Helpers.Print(text);
+            if (text.Length > 1000)
+                text = text.Substring(0, 1000);
+            PostBootDialog.ToDialog(text);
+            return false;
+        }
+
+        public object ReadSettings()
+        {
+            return Instance;
+        }
+
+        public void WriteSettings(object settings)
+        {
+            if (settings is CustomizeRecipeState state)
+                state.TrySave();
+            else
+                TrySave();
+        }
+
+        public string GetConfigPath()
+        {
+            return DefaultPath;
+        }
+
+        public void OnLoaded()
+        {
+            // check if any recipe actually has zero inputs, if not disable the patch
+            if (AllowZeroInput)
             {
-                foreach (var recipe in state.RecipeSettings)
+                foreach (var recipe in RecipeSettings)
                 {
                     foreach (var input in recipe.Inputs)
                     {
@@ -77,35 +118,9 @@ namespace CustomizeRecipe
                             goto exit_1;
                     }
                 }
-                state.AllowZeroInput = false;
+                AllowZeroInput = false;
             exit_1:;
             }
-        }
-
-        public object ReadSettings()
-        {
-            return StateManager.State;
-        }
-
-        public void WriteSettings(object settings)
-        {
-            if (settings is CustomizeRecipeState state)
-                StateManager.TrySaveConfigurationState(state);
-            else
-                StateManager.TrySaveConfigurationState();
-        }
-
-        public string GetConfigPath()
-        {
-            return GetStaticConfigPath();
-        }
-
-        public static string GetStaticConfigPath()
-        {
-            string path = FumiKMod.ModName;
-            //if (Helpers.ActiveLocale.NotEmpty() && Helpers.ActiveLocale != "en")
-            //    path += "_" + Helpers.ActiveLocale;
-            return Config.PathHelper.CreatePath(path);
         }
 
         #endregion
