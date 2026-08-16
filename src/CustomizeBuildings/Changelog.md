@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.127.0] U59-737790-SCRPAN (release)
+- fixed reset button
+
 ## [1.0.126.0] U59-737790-SCRPAN (release)
 - added PRegistry for pipe size (mod compatibility)
 

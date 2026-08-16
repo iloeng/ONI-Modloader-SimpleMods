@@ -55,7 +55,6 @@ namespace Common
             {
                 Print($"{action.Method.Name} caused an Exception: {e}");
             }
-
         }
         #endregion
 
@@ -268,7 +267,7 @@ namespace Common
 
         public static bool NotEmpty(this string str)
         {
-            return str != null && str != "";
+            return str is not (null or "");
         }
 
         public static bool TryParseEnum(Type enumType, string value, [NotNullWhen(true)] out Enum? result)
@@ -297,7 +296,7 @@ namespace Common
 
         public static T[] AppendAndReplace<T>(ref T[] orig, params T[] objs)
         {
-            if (orig == null) orig = [];
+            orig ??= [];
 
             int i, j;
             T[] result = new T[orig.Length + objs.Length];
@@ -311,7 +310,7 @@ namespace Common
 
         public static T[] AddToArray<T>(this T[] array, params T[] objs)
         {
-            if (array == null) array = [];
+            array ??= [];
 
             int i, j;
             T[] result = new T[array.Length + objs.Length];
@@ -495,7 +494,6 @@ namespace Common
                     sw.WriteLine($"{field.Name}: ");
                 }
             }
-
         }
 
         public static Regex FindKeywords = new(@"<.*?>", RegexOptions.Compiled); //FindBetweenLinks   @">(.*?)<\/"
@@ -515,15 +513,12 @@ namespace Common
 
         public static LocString GetTemperatureUnit()
         {
-            switch (GameUtil.temperatureUnit)
+            return GameUtil.temperatureUnit switch
             {
-                case GameUtil.TemperatureUnit.Celsius:
-                    return STRINGS.UI.UNITSUFFIXES.TEMPERATURE.CELSIUS;
-                case GameUtil.TemperatureUnit.Fahrenheit:
-                    return STRINGS.UI.UNITSUFFIXES.TEMPERATURE.FAHRENHEIT;
-                default:
-                    return STRINGS.UI.UNITSUFFIXES.TEMPERATURE.KELVIN;
-            }
+                GameUtil.TemperatureUnit.Celsius => STRINGS.UI.UNITSUFFIXES.TEMPERATURE.CELSIUS,
+                GameUtil.TemperatureUnit.Fahrenheit => STRINGS.UI.UNITSUFFIXES.TEMPERATURE.FAHRENHEIT,
+                _ => STRINGS.UI.UNITSUFFIXES.TEMPERATURE.KELVIN,
+            };
         }
 
         public static string Locale
@@ -538,13 +533,7 @@ namespace Common
             }
         }
 
-        public static string PathLocale
-        {
-            get
-            {
-                return Path.Combine(Config.PathHelper.AssemblyDirectory, "strings_" + Locale + ".pot");
-            }
-        }
+        public static string PathLocale => Path.Combine(Config.PathHelper.AssemblyDirectory, "strings_" + Locale + ".pot");
 
         public static Dictionary<string, string> StringsDic = new();
 
@@ -730,26 +719,22 @@ namespace Common
         public static void LocalizeTypeToPOT(Type type, string? path = null)
         {
             string typename = type.FullName.Replace('+', '.');
-            using (StreamWriter sw = new StreamWriter(path ?? "STRINGS.pot", true))
+            using StreamWriter sw = new StreamWriter(path ?? "STRINGS.pot", true);
+            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
+                if (field.FieldType == typeof(LocString))
                 {
-                    if (field.FieldType == typeof(LocString))
-                    {
-                        var loc = (LocString)field.GetValue(null);
-                        sw.WriteLine($"#. {typename}.{field.Name}");
-                        sw.WriteLine($"msgctxt \"{typename}.{field.Name}\"");
-                        sw.WriteLine($"msgid \"{loc.text}\"");
-                        sw.WriteLine($"msgstr \"\"\n");
-                    }
+                    var loc = (LocString)field.GetValue(null);
+                    sw.WriteLine($"#. {typename}.{field.Name}");
+                    sw.WriteLine($"msgctxt \"{typename}.{field.Name}\"");
+                    sw.WriteLine($"msgid \"{loc.text}\"");
+                    sw.WriteLine($"msgstr \"\"\n");
                 }
             }
         }
         #endregion
 
         #region AttributeModifier
-        public static PropertyInfo _AttributeModifierValue = AccessTools.Property(typeof(AttributeModifier), nameof(AttributeModifier.Value));
-        public static PropertyInfo _AttributeModifierIsMultiplier = AccessTools.Property(typeof(AttributeModifier), nameof(AttributeModifier.IsMultiplier));
 
         public static void EnsureAttributeModifier(this List<AttributeModifier> list, string AttributeId, float value, bool is_multiplier, string? description = null, bool uiOnly = false, bool is_readonly = false)
         {
@@ -760,8 +745,8 @@ namespace Common
             }
             else
             {
-                _AttributeModifierValue.SetValue(attribute, value, null);
-                _AttributeModifierIsMultiplier.SetValue(attribute, is_multiplier, null);
+                attribute.Value = value;
+                attribute.IsMultiplier = is_multiplier;
             }
         }
 

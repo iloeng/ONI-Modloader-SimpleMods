@@ -19,7 +19,6 @@ namespace CustomizeBuildings
     [ModInfo(null, collapse: true)]
     public class CustomizeBuildingsState : BaseSettings<CustomizeBuildingsState>, IManualConfig
     {
-        [JsonInclude] public int? version;
         public override int Version { get; set; } = 62;
 
         #region $Reset Button
@@ -206,7 +205,7 @@ namespace CustomizeBuildings
         [JsonIgnore]
         public System.Action<object> ResetToCustomDefault => delegate (object nix)
         {
-            TrySave();
+            new CustomizeBuildingsState().TrySave();
 
             OptionsDialog.Last?.CloseDialog();
             OptionsDialog.Last?.CheckForRestart();
@@ -789,7 +788,7 @@ namespace CustomizeBuildings
 
         #region _implementation
 
-        public override string DefaultPath => Path.Combine(Util.RootFolder(), "mods", "CustomizeBuildings.json");
+        public override string DefaultPath => Path.Combine(Util.RootFolder(), "mods", $"{FumiKMod.ModName}.json");
 
         protected override string BeforeUpdate(int oldVersion, string json)
         {
@@ -844,11 +843,6 @@ namespace CustomizeBuildings
 
         protected override bool OnUpdate()
         {
-            if (version != null)
-            {
-                Version = version.Value;
-                version = null;
-            }
             if (Version < 29)
                 AutoSweeperPickupAnything = false;
             if (Version < 36)

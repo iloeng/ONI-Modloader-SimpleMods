@@ -63,6 +63,9 @@ dotnet_diagnostic.CA1866.severity = none
 # CS0164: Auf diese Bezeichnung wurde nicht verwiesen.
 dotnet_diagnostic.CS0164.severity = none
 
+# CA1510: ArgumentNullException-Throw-Hilfsprogramm verwenden
+dotnet_diagnostic.CA1510.severity = none
+
 # CS1591: Fehlendes XML-Kommentar für öffentlich sichtbaren Typ oder Element
 dotnet_diagnostic.CS1591.severity = suggestion
 
@@ -201,7 +204,7 @@ csharp_style_allow_embedded_statements_on_same_line_experimental = true
 #### C#-Formatierungsregeln ####
 
 # Einstellungen für neue Zeilen
-csharp_new_line_before_catch = false
+csharp_new_line_before_catch = true
 csharp_new_line_before_else = true
 csharp_new_line_before_finally = false
 csharp_new_line_before_members_in_anonymous_types = true
