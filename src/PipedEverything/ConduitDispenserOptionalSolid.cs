@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,7 +14,7 @@ namespace PipedEverything
     [SkipSaveFileSerialization]
     public class ConduitDispenserOptionalSolid : KMonoBehaviour, IConduitDispenser
     {
-        private float PackageSize = PipedEverythingState.StateManager.State.SolidPipeOutput;
+        private float PackageSize = PipedEverythingState.Instance.SolidPipeOutput;
 
         [SerializeField]
         public CellOffset conduitOffset;

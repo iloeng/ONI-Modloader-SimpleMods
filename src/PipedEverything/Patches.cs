@@ -1,4 +1,4 @@
-﻿using Common;
+using Common;
 using HarmonyLib;
 using Newtonsoft.Json;
 using Shared;
@@ -214,7 +214,7 @@ namespace PipedEverything
         [HarmonyPostfix]
         public static void Assets_CreatePrefabs_Postfix()
         {
-            if (!PipedEverythingState.StateManager.State.GeyserPipes)
+            if (!PipedEverythingState.Instance.GeyserPipes)
                 return;
 
             foreach (var prefab in Assets.Prefabs)

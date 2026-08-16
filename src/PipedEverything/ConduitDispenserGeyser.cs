@@ -1,4 +1,4 @@
-﻿using Common;
+using Common;
 using Klei;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ namespace PipedEverything
     [SkipSaveFileSerialization]
     public class ConduitDispenserGeyser : KMonoBehaviour, ISim200ms
     {
-        private float PackageSize = PipedEverythingState.StateManager.State.SolidPipeOutput;
+        private float PackageSize = PipedEverythingState.Instance.SolidPipeOutput;
 
         [SerializeField]
         public ConduitType ConduitType;
@@ -158,7 +158,7 @@ namespace PipedEverything
                 {
                     case ConduitFlow pipeFlow:
                         float massAddedToPipe;
-                        if (PipedEverythingState.StateManager.State.GeyserPipesUnlimited)
+                        if (PipedEverythingState.Instance.GeyserPipesUnlimited)
                             massAddedToPipe = ConduitAddElementOverpressure(pipeFlow, this.UtilityCell, element.ElementID, element.Mass, element.Temperature, element.DiseaseIdx, element.DiseaseCount, this.ElementEmitter.outputElement.massGenerationRate);
                         else
                             massAddedToPipe = pipeFlow.AddElement(this.UtilityCell, element.ElementID, element.Mass, element.Temperature, element.DiseaseIdx, element.DiseaseCount);
@@ -175,7 +175,7 @@ namespace PipedEverything
                         if (solidFlow.HasConduit(this.UtilityCell) && solidFlow.IsConduitEmpty(this.UtilityCell))
                         {
                             float mass = PackageSize;
-                            if (PipedEverythingState.StateManager.State.GeyserPipesUnlimited)
+                            if (PipedEverythingState.Instance.GeyserPipesUnlimited)
                                 mass = Mathf.Max(mass, this.ElementEmitter.outputElement.massGenerationRate);
 
                             var pickupable = element.GetComponent<Pickupable>();

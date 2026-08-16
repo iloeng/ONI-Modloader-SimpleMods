@@ -4,17 +4,27 @@ using System.Linq;
 using UnityEngine;
 using Common;
 using Shared.CollectionNS;
+using PeterHan.PLib.Core;
+using Shared.JsonNS;
 
 namespace PipedEverything
 {
     public static class AddLogic
     {
+        public static bool DidApplyModifications;
+
         public static void TryAddLogic(BuildingDef def)
         {
             if (def?.PrefabID == null)
                 return;
 
-            foreach (var config in PipedEverythingState.StateManager.State.Configs.Where(w => w.Id == def.PrefabID || w.Id == def.Name.StripLinks()))
+            if (!DidApplyModifications)
+            {
+                DidApplyModifications = true;
+                ApplyPostModifications();
+            }
+
+            foreach (var config in PipedEverythingState.Instance.Configs.Where(w => w.Id == def.PrefabID || w.Id == def.Name.StripLinks()))
             {
                 if (config.OriginalPort is null)
                     TryAddLogicNew(def, config);
@@ -69,20 +79,15 @@ namespace PipedEverything
                     {
                         if (v.IsSolid)
                             filters.Add(v.id);
-                        else
-                        {
-                            Helpers.PrintDialog($"Unable to resolve: {filter} in {config.Id}");
-                            continue;
-                        }
                     }
+                    if (filters.Count == 0)
+                        Helpers.PrintDialog($"Unable to resolve: {filter} in {config.Id}");
                     continue;
                 }
 
                 if (conduitType == ConduitType.None)
                     conduitType = element.IsGas ? ConduitType.Gas : element.IsLiquid ? ConduitType.Liquid : ConduitType.Solid;
-                else if (conduitType == ConduitType.Gas && !element.IsGas
-                    || conduitType == ConduitType.Liquid && !element.IsLiquid
-                    || conduitType == ConduitType.Solid && !element.IsSolid)
+                else if (conduitType != element.GetConduitType())
                 {
                     Helpers.PrintDialog($"Element does not match conduit type {conduitType}: {filter} in {config.Id}");
                     continue;
@@ -149,11 +154,9 @@ namespace PipedEverything
             if (config.RemoveMaxAtmosphere == true)
             {
                 var electrolyzer = def.BuildingComplete.GetComponent<Electrolyzer>();
-                if (electrolyzer != null)
-                    electrolyzer.maxMass = 100000f;
+                electrolyzer?.maxMass = 100000f;
                 var rustDeoxidizer = def.BuildingComplete.GetComponent<RustDeoxidizer>();
-                if (rustDeoxidizer != null)
-                    rustDeoxidizer.maxMass = 100000f;
+                rustDeoxidizer?.maxMass = 100000f;
                 var oilRefinery = def.BuildingComplete.GetComponent<OilRefinery>();
                 if (oilRefinery != null)
                 {
@@ -237,7 +240,7 @@ namespace PipedEverything
 
             // add storage
             var storage = go.AddOrGet<Storage>();
-            storage.capacityKg = element.IsGas ? PipedEverythingState.StateManager.State.GeyserGasStorageKG : PipedEverythingState.StateManager.State.GeyserStorageKG;
+            storage.capacityKg = element.IsGas ? PipedEverythingState.Instance.GeyserGasStorageKG : PipedEverythingState.Instance.GeyserStorageKG;
             storage.defaultStoredItemModifers = Storage.StandardInsulatedStorage;
 
             // add port
@@ -263,5 +266,80 @@ namespace PipedEverything
             }
             return color;
         }
+
+        public static void ApplyPostModifications()
+        {
+            if (PipedEverythingState.Instance.API_Blacklist.Contains("*"))
+                return;
+            var mods = PRegistry.GetData<List<string>>("PipedEverything.PostMod");
+            if (mods == null)
+                return;
+            var state = PostModState.Skip;
+            foreach (var mod in mods)
+            {
+                try
+                {
+                    if (mod.StartsWith("$"))
+                    {
+                        Helpers.Print($"Post modification request from {mod}");
+                        if (PipedEverythingState.Instance.API_Blacklist.Contains(mod))
+                            state = PostModState.Skip;
+                        else
+                            state = PostModState.None;
+                    }
+                    else if (state == PostModState.Skip)
+                        continue;
+                    else if (mod is "ADD")
+                        state = PostModState.Add;
+                    else if (mod is "DEL")
+                        state = PostModState.Delete;
+                    else
+                    {
+                        var config = JsonTool.Deserialize<PipeConfig>(mod) ?? throw new Exception("unable to deserialize");
+                        switch (state)
+                        {
+                            case PostModState.Delete:
+                                int count = PipedEverythingState.Instance.Configs.RemoveAll(a => a.Equals(config));
+                                Helpers.Print($"Removed {count} pipes from {config.Id}");
+                                break;
+                            case PostModState.Add:
+                                if (!PipedEverythingState.Instance.Configs.Contains(config))
+                                    PipedEverythingState.Instance.Configs.Add(config);
+                                Helpers.Print($"Added pipe to {config.Id}");
+                                break;
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    Helpers.Print($"PostMod invalid: {mod}");
+                }
+            }
+        }
+
+        public static void PRegistryExample()
+        {
+            // try to get list or, if it does exist yet, create a new list
+            var mods = PRegistry.GetData<List<string>>("PipedEverything.PostMod");
+            if (mods == null)
+                PRegistry.PutData("PipedEverything.PostMod", mods = new());
+
+            // every instruction set must start with '$' plus a unique name, usually the mods
+            mods.Add("$MyMod");
+
+            // next define which action should be done
+            mods.Add("ADD");
+
+            // then define the any number of entries as a json string; this is identical to the config file
+            mods.Add("""{"Id":"RustDeoxidizer","Input":false,"OffsetX":1,"OffsetY":0,"Filter":["IronOre"]}""");
+            mods.Add("""{"Id":"RustDeoxidizer","Input":false,"OffsetX":0,"OffsetY":1,"Filter":["IronOre"]}""");
+
+            // when deleting entries, optional properties can be omitted and the filter is matched based on aggregate state only
+            // an offset of 99 will match any X or Y position
+            mods.Add("DELETE");
+            mods.Add("""{"Id":"RustDeoxidizer","Input":false,"OffsetX":99,"OffsetY":99,"Filter":["Solid"]}""");
+        }
     }
+
+    public enum PostModState { None, Skip, Add, Delete }
 }

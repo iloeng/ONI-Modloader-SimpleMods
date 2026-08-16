@@ -1,4 +1,4 @@
-﻿using Common;
+using Common;
 using HarmonyLib;
 using KMod;
 using System;
@@ -26,7 +26,7 @@ namespace PipedEverything
             // load translation, if any
 
             // load settings
-            PipedEverythingState.StateManager = new(PipedEverythingState.GetStaticConfigPath(), true, PipedEverythingState.OnUpdate, null);
+            _ = PipedEverythingState.Instance;
 
             // init options menu
 

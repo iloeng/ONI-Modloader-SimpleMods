@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.34.0] U59-744825-SCRPAN (release)
+- updated json logic
+- added PRegistry PipedEverything.PostMod to override port settings
+
 ## [1.0.33.0] U59-737790-SCRPAN (release)
 - changed so that filter can override the capacity tag of original port; the filter "DESTROY" removes the port instead
 

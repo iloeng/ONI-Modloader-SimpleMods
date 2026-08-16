@@ -1,16 +1,19 @@
+using Common;
+using Config;
+using Shared;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using Common;
 using UnityEngine;
 
 #pragma warning disable IDE1006 // lower case
 
 namespace PipedEverything
 {
-    public class PipedEverythingState
+    public class PipedEverythingState : BaseSettings<PipedEverythingState>
     {
-        public int version { get; set; } = 11;
+        public override int Version { get; set; } = 12;
 
         public bool GeyserPipes { get; set; } = false;
         public bool GeyserPipesUnlimited { get; set; } = true;
@@ -162,20 +165,31 @@ namespace PipedEverything
 
         };
 
+        public List<string> API_Blacklist { get; set; } = new();
+
         #region _implementation
 
-        public static Config.Manager<PipedEverythingState> StateManager = null!;
+        public override string DefaultPath => Path.Combine(Util.RootFolder(), "mods", $"{FumiKMod.ModName}.json");
 
-        public static bool OnUpdate(PipedEverythingState state)
+        protected override string BeforeUpdate(int oldVersion, string json)
         {
-            if (state.version < 5)
+            if (oldVersion < 12)
             {
-                state.Configs.RemoveAll(a => a.Id == PolymerizerConfig.ID && a.Filter.FirstOrDefault() == SimHashes.CarbonDioxide.ToString());
+                json = json.Replace("\"version\"", "\"Version\"");
+            }
+            return json;
+        }
+
+        protected override bool OnUpdate()
+        {
+            if (Version < 5)
+            {
+                Configs.RemoveAll(a => a.Id == PolymerizerConfig.ID && a.Filter.FirstOrDefault() == SimHashes.CarbonDioxide.ToString());
             }
 
-            if (state.version < 7)
+            if (Version < 7)
             {
-                foreach (var config in state.Configs)
+                foreach (var config in Configs)
                 {
                     for (int i = 0; i < config.Filter.Length; i++)
                         if (config.Filter[i] == "Creature")
@@ -184,28 +198,27 @@ namespace PipedEverything
                         config.StorageIndex = 0;
                 }
 
-                if (!state.Configs.Any(a => a.Id == IceKettleConfig.ID))
+                if (!Configs.Any(a => a.Id == IceKettleConfig.ID))
                 {
-                    state.Configs.Add(new PipeConfig(IceKettleConfig.ID, true, x: 0, y: 0, SimHashes.WoodLog) { StorageIndex = 0 });
-                    state.Configs.Add(new PipeConfig(IceKettleConfig.ID, true, x: 0, y: 1, SimHashes.Ice) { StorageIndex = 1 });
-                    state.Configs.Add(new PipeConfig(IceKettleConfig.ID, false, x: 1, y: 0, SimHashes.Water) { StorageIndex = 2 });
+                    Configs.Add(new PipeConfig(IceKettleConfig.ID, true, x: 0, y: 0, SimHashes.WoodLog) { StorageIndex = 0 });
+                    Configs.Add(new PipeConfig(IceKettleConfig.ID, true, x: 0, y: 1, SimHashes.Ice) { StorageIndex = 1 });
+                    Configs.Add(new PipeConfig(IceKettleConfig.ID, false, x: 1, y: 0, SimHashes.Water) { StorageIndex = 2 });
                 }
             }
 
-            if (state.version < 8)
+            if (Version < 8)
             {
-                var config = state.Configs.FirstOrDefault(f => f.Id == AlgaeHabitatConfig.ID && f.Filter.Length == 1 && f.Filter[0] == SimHashes.DirtyWater.ToString());
-                if (config != null)
-                    config.StorageCapacity = 800f;
+                Configs.FirstOrDefault(f => f.Id == AlgaeHabitatConfig.ID && f.Filter.Length == 1 && f.Filter[0] == SimHashes.DirtyWater.ToString())
+                    ?.StorageCapacity = 800f;
             }
 
-            if (state.version < 9)
+            if (Version < 9)
             {
-                foreach (var config in state.Configs)
+                foreach (var config in Configs)
                     config.RemoveMaxAtmosphere = null;
             }
 
-            if (state.version < 10)
+            if (Version < 10)
             {
                 addIfNew(new PipeConfig(MilkPressConfig.ID, true, x: 0, y: 0, SimHashes.Water));
                 addIfNew(new PipeConfig(MilkPressConfig.ID, true, x: 1, y: 0, "Solid") { StorageCapacity = float.PositiveInfinity });
@@ -220,49 +233,19 @@ namespace PipedEverything
 
             void addIfNew(PipeConfig config)
             {
-                if (!state.Configs.Any(a => a.Id == config.Id && a.Input == config.Input && (a.OffsetX == config.OffsetX && a.OffsetY == config.OffsetY || a.Filter.SequenceEqual(config.Filter))))
-                    state.Configs.Add(config);
+                if (!Configs.Any(a => a.Id == config.Id && a.Input == config.Input && (a.OffsetX == config.OffsetX && a.OffsetY == config.OffsetY || a.Filter.SequenceEqual(config.Filter))))
+                    Configs.Add(config);
             }
         }
 
-        public object ReadSettings()
+        protected override bool OnError(Exception e)
         {
-            return StateManager.State;
-        }
-
-        public void WriteSettings(object settings)
-        {
-            if (settings is PipedEverythingState state)
-                StateManager.TrySaveConfigurationState(state);
-            else
-                StateManager.TrySaveConfigurationState();
-        }
-
-        public string GetConfigPath()
-        {
-            return GetStaticConfigPath();
-        }
-
-        public static string GetStaticConfigPath()
-        {
-            string path = FumiKMod.ModName;
-            //if (Helpers.ActiveLocale.NotEmpty() && Helpers.ActiveLocale != "en")
-            //    path += "_" + Helpers.ActiveLocale;
-            return Config.PathHelper.CreatePath(path);
-        }
-
-        #endregion
-
-        #region _api
-
-        public static void AddConfig(string id, bool input, int x, int y, string[] filter, Color32? color = null, int? storageIndex = null, float? storageCapacity = null)
-        {
-            StateManager.State.Configs.Add(new PipeConfig() { Id = id, Input = input, OffsetX = x, OffsetY = y, Filter = filter, Color = color, StorageIndex = storageIndex, StorageCapacity = storageCapacity });
-        }
-
-        public static void RemoveConfig(string id, int x, int y)
-        {
-            StateManager.State.Configs.RemoveAll(r => r.Id == id && r.OffsetX == x && r.OffsetY == y);
+            var text = e.ToString();
+            Helpers.Print(text);
+            if (text.Length > 1000)
+                text = text.Substring(0, 1000);
+            PostBootDialog.ToDialog(text);
+            return false;
         }
 
         #endregion
